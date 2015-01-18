@@ -1,0 +1,196 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+## Part 1:Loading and Preprocessing the Data
+```{r}
+        
+        fileUrl<-"http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+        download.file(url=fileUrl,destfile="Activity.zip")
+        unzip("Activity.zip")
+        activity<-read.csv("activity.csv")
+        class(activity)
+        str(activity)
+        head(activity)
+        tail(activity)
+        summary(activity)
+```
+
+### Examining Missing Values
+```{r}
+                sum(is.na(activity$steps))
+```
+
+
+### Missing Values by Date
+```{r}          
+                missing_values<-tapply(is.na(activity$steps),activity$date,sum)
+                missing_values[missing_values>0]
+```
+        
+### Distribution of steps 
+```{r}
+                quantile(activity$steps,na.rm=TRUE,probs=c(0.5,0.6,0.7,0.8,0.9,0.95,1))
+```
+
+
+
+
+## Part 2:Mean and Median Total Sumber of Steps Taken Per Day
+### Histogram of Total Number of Steps Taken Per Day
+```{r,fig.height=4,fig.width=9}
+                total_steps<-tapply(activity$steps,activity$date,sum,na.rm=TRUE)
+                summary(total_steps)
+                hist(total_steps,xlab="Total steps per day",
+                     main="Histogram of total daily steps")
+```
+
+### Computing Mean and Median Total Steps Taken Per Day
+```{r}
+                mean_total_steps<-mean(total_steps)
+                mean_total_steps
+                median_total_steps<-median(total_steps)
+                median_total_steps
+```
+
+
+
+
+## Part 3:Average Daily Activity Pattern
+### Number of steps for each 5 minute interval averaged across all days
+```{r}
+                interval_steps<-tapply(activity$steps,as.factor(activity$interval)
+                                       ,mean,na.rm=TRUE)
+```
+### Median number of steps for each 5 minute interval across all days
+```{r}
+                interval_steps_median<-tapply(activity$steps,as.factor(activity$interval),
+                              median,na.rm=TRUE)
+```
+###Time Series Plot of 5-minute interval versus Average steps 
+```{r,fig.height=4,fig.width=9}
+                uniq_intervals<-unique(activity$interval)
+                plot(uniq_intervals,interval_steps,type="l",xlab="Interval",
+                     ylab="Average Number of Steps")
+                abline(v=max_interval,col="blue2")
+```
+
+
+### 5-minute interval containing maximum number of steps
+```{r}
+                max(interval_steps)
+                max_interval<-uniq_intervals[interval_steps==max(interval_steps)]
+                max_interval
+```
+       
+#### Conclusion: The 835 interval contains the maximum activity. The average maximum activity 
+#### for this time interval is 206.1698 steps
+        
+
+
+## Part 4:Imputing Missing Values
+### Total number of Missing Values
+```{r}
+                missing_vals<-sum(is.na(activity))
+                missing_vals
+                isnas<-which(is.na(activity$steps))
+```
+### Strategy 1:Creating a new dataset by Replacing missing values with Mean of 5-minute interval
+```{r}
+                activity$impsteps<-replace(activity$steps,isnas,interval_steps)
+```
+### Strategy 2:Creating a new dataset by Replacing missing values with Median of 5-minute interval
+```{r}
+                activity$impsteps_median<-replace(activity$steps,isnas,interval_steps_median)
+```
+### Strategy 1: Analysis with mean imputed values
+```{r}
+                total_impsteps<-tapply(activity$impsteps,activity$date,sum)
+                mean_total_impsteps<-mean(total_impsteps)
+                mean_total_impsteps
+                median_total_impsteps<-median(total_impsteps)
+                median_total_impsteps
+```
+####Histogram of total number of steps for Strategy 1
+```{r,fig.height=4,fig.width=9}
+                hist(total_impsteps,xlab="Total steps per day",
+                        main="Histogram of total daily steps after imputing mean values")
+```
+
+
+### Strategy 1: Comparison of means and medians before and after imputing mean missing values
+####Mean Total Steps (without imputing missing values)= 9354.23
+####Mean Total Steps (after imputing average values) =  10766.19
+####Median Total Steps (without imputing missing values)= 10395
+####Median Total Steps (after imputing average values) = 10766.19
+                
+
+### Strategy 2: Analysis with median imputed values
+```{r}
+                total_impsteps_median<-tapply(activity$impsteps_median,activity$date,sum)
+                mean_total_impsteps_median<-mean(total_impsteps_median)
+                mean_total_impsteps_median
+                median_total_impsteps_median<-median(total_impsteps_median)
+                median_total_impsteps_median
+```
+####Histogram of total number of steps for Strategy 2
+```{r,fig.height=4,fig.width=9}
+                        hist(total_impsteps_median,xlab="Total steps per day",
+                        main="Histogram of total daily steps after imputing median values")
+```
+
+### Strategy 2: Comparison of means and medians before and after imputing median missing values
+####Mean Total Steps without imputing missing values= 9354.23
+####Mean Total Steps after imputing median values) =  9503.869 
+####Median Total Steps without imputing missing values)= 10395
+####Median Total Steps after imputing median values) = 10395    
+### Impact of imputing Missing Values in Strategy 1 and Strategy 2
+
+### Comparison between Strategy 1 and Strategy 2
+#### Strategy 1 : Mean value increases, Median also increases
+#### Strategy 2 : Mean value decreases, Median value remains the same
+#### Since after imputing median values the histogram of the total number of steps more closely
+####resembles the original histogram and estimates are less biased, Strategy 2 is preferred. 
+                     
+
+
+## Part 5: Differences in Activity patterns between weekdays and weekends
+#### Since Strategy 2 appears to create less biases in the computation of mean and median values 
+####I shall use the dataset created by following Strategy 2 (median imputation)
+####for this part of the analysis    
+
+### Determining day of week
+```{r}
+                activity$asdate<-as.Date(activity$date,"%Y-%m-%d")
+                class(activity$asdate)
+                activity$day<-weekdays(activity$asdate)
+```
+### Creating a  Binary factor variable for weekday or weekend
+```{r}
+                activity$wkend<-activity$day %in% c("Saturday","Sunday")
+```
+### Computing the Interval averages for weekdays and weekends
+```{r}
+                wkdayavg<-tapply(activity$impsteps_median[activity$wkend=="FALSE"],as.factor
+                 (activity$interval[activity$wkend=="FALSE"]),mean)
+                wkendavg<-tapply(activity$impsteps_median[activity$wkend=="TRUE"],
+                 as.factor(activity$interval[activity$wkend=="TRUE"]),mean)
+```
+### Plotting Weekday versus Weekend activity
+```{r,fig.height=7,fig.width=9}
+                par(mfrow=c(2,1),mar=c(4,4,2,1))
+                plot(uniq_intervals,wkdayavg,type="l",col="blue",
+                main=list("Weekdays",cex=1),xlab="",ylab="Number of steps")        
+                plot(uniq_intervals,wkendavg,type="l",col="violet",
+                main=list("Weekends",cex=1),xlab=list("Interval",cex=1.25),
+                ylab="Number of steps")
+```
+
+### Conclusions: 
+####There seem to be considerable differences between weekdays and weekends
+#### 1. The maximum number of steps during weekdays is higher than in the weekends
+#### 2. The number of steps during weekdays spikes sharply in the morning hours around  8 to 9 am 
+#### 2. The average number of steps is distributed more uniformly across the various 
+#### 5-minute intervals in the weekend than in the weekdays.
